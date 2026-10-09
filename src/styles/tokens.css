@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght,wdth@0,100..900,125;1,100..900,125&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+:root {
+  /* Page Background & Text Tokens */
+  --hex-bg-1: #090d16;
+  --hex-bg-light: #f4f5f8;
+  --hex-fg-1: #f8fafc;
+  --hex-fg-2: #cbd5e1;
+  --hex-fg-3: #94a3b8;
+  --hex-fg-4: #64748b;
+
+  /* Accent Scales (8-step) */
+  --hex-indigo-1: #818cf8;
+  --hex-indigo-2: #6366f1;
+  --hex-indigo-3: #4f46e5;
+  --hex-indigo-4: #4338ca;
+  --hex-indigo-5: #3730a3;
+  --hex-indigo-6: #312e81;
+  --hex-indigo-7: #1e1b4b;
+  --hex-indigo-8: #11102e;
+
+  --hex-purple-1: #c084fc;
+  --hex-purple-2: #a855f7;
+  --hex-purple-3: #9333ea;
+  --hex-purple-4: #7e22ce;
+  --hex-purple-5: #6b21a8;
+  --hex-purple-6: #581c87;
+  --hex-purple-7: #3b0764;
+  --hex-purple-8: #1f0338;
+
+  --hex-sky-1: #38bdf8;
+  --hex-sky-2: #0ea5e9;
+  --hex-sky-3: #0284c7;
+  --hex-sky-4: #0369a1;
+  --hex-sky-5: #075985;
+  --hex-sky-6: #0c4a6e;
+  --hex-sky-7: #082f49;
+  --hex-sky-8: #031726;
+
+  --hex-emerald-1: #34d399;
+  --hex-emerald-8: #022c22;
+  --hex-rose-1: #fb7185;
+  --hex-rose-8: #4c0519;
+
+  /* Fonts */
+  --font-sans: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Sizes & Radii */
+  --header-height: 3.5rem;
+  --radius-s: 0.25rem;
+  --radius-m: 0.5rem;
+  --radius-l: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+html {
+  color-scheme: dark;
+  font-family: var(--font-sans);
+  background-color: var(--hex-bg-1);
+  color: var(--hex-fg-1);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+code, pre {
+  font-family: var(--font-mono);
+}
+.glow-bg {
+  position: fixed;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(168, 85, 247, 0.08) 50%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+/* --- Drifting Aurora Blobs --- */
+.aurora-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.25;
+  animation: floatAurora 40s ease-in-out infinite alternate;
+}
+
+.aurora-blob-1 {
+  width: 600px;
+  height: 600px;
+  top: -10%;
+  left: -10%;
+  background: radial-gradient(circle, var(--active-accent, #818cf8), transparent 70%);
+}
+
+.aurora-blob-2 {
+  width: 700px;
+  height: 700px;
+  bottom: -20%;
+  right: -10%;
+  background: radial-gradient(circle, #c084fc, transparent 70%);
+  animation-delay: -15s;
+}
+
+.aurora-blob-3 {
+  width: 500px;
+  height: 500px;
+  top: 40%;
+  left: 30%;
+  background: radial-gradient(circle, #38bdf8, transparent 70%);
+  animation-delay: -25s;
+}
+
+@keyframes floatAurora {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(80px, 60px) scale(1.15); }
+  100% { transform: translate(-60px, -40px) scale(0.9); }
+}
+
+/* --- Subtle Film Grain Overlay --- */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
