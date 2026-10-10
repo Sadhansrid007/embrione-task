@@ -2,18 +2,13 @@
 
 import { useEffect, useRef } from 'react';
 
-// ---- Tunables ---------------------------------------------------------------
 const IMAGE_SRC = '/nebula.jpg';
-// Where the nebula's bright core sits on screen: [x from left, y from BOTTOM], 0..1
 const NUCLEUS: [number, number] = [0.51, 0.46];
-// true = same orientation your previous shader rendered (it flipped Y). Set false for the file's original orientation.
 const FLIP_VERTICAL = true;
 const STAR_COUNT = 420;
-// How far the nucleus leans toward the cursor (0 = cursor does nothing)
 const CURSOR_LEAN = 0.012;
 const MAX_DPR = 2;
 
-// ---- Background (nebula texture) -------------------------------------------
 const BG_VERT = `
 attribute vec2 aPosition;
 varying vec2 vUv;
@@ -39,7 +34,6 @@ uniform float uFlip;
 uniform vec3 uTint;
 varying vec2 vUv;
 
-// "Cover" mapping: fills the screen without stretching the image
 vec2 coverUV(vec2 uv) {
   float sa = uRes.x / uRes.y;
   vec2 s = vec2(1.0);
@@ -53,8 +47,6 @@ void main() {
   p.x *= sa;
   float r = length(p);
 
-  // Slow "inhale": the whole nebula drifts toward the nucleus while twisting gently
-  // around it (faster near the core). Uses a smooth wave, so nothing ever winds up.
   float wave = 0.5 - 0.5 * cos(uTime * 0.045);
   float zoom = 1.0 - 0.05 * (1.0 - wave);
   float ang = 0.12 * sin(uTime * 0.045) * exp(-r * 2.2);
@@ -67,15 +59,12 @@ void main() {
   if (uFlip > 0.5) { uv.y = 1.0 - uv.y; }
   vec3 col = texture2D(uTexture, uv).rgb;
 
-  // Brightness ramps from dim (left) to bright (right)
   float lr = mix(0.30, 1.0, smoothstep(0.0, 1.0, vUv.x));
   col *= lr * 0.9;
 
-  // Soft core glow that swells slightly as the system draws inward
   float core = smoothstep(0.5, 0.0, r);
   col += (vec3(0.14, 0.05, 0.18) + uTint * 0.04) * core * core * (0.6 + 0.4 * wave) * lr;
 
-  // Vignette
   float vig = smoothstep(1.3, 0.3, length((vUv - 0.5) * vec2(sa, 1.0)));
   col *= mix(0.5, 1.0, vig);
 
@@ -83,9 +72,8 @@ void main() {
 }
 `;
 
-// ---- Stars spiraling into the nucleus --------------------------------------
 const STAR_VERT = `
-attribute vec4 aSeed; // x: start angle, y: phase, z: speed (cycles/sec), w: size
+attribute vec4 aSeed;
 uniform float uTime;
 uniform vec2 uNucleus;
 uniform float uAspect;
@@ -96,9 +84,9 @@ varying float vX;
 varying float vHeat;
 
 void main() {
-  float p = fract(aSeed.y + uTime * aSeed.z);   // 0 = born far away, 1 = reaches the nucleus
-  float r = uRmax * (1.0 - p * p);              // accelerates as it falls inward
-  float th = aSeed.x + 7.5 * pow(p, 1.4);       // spiral tightens toward the core
+  float p = fract(aSeed.y + uTime * aSeed.z);
+  float r = uRmax * (1.0 - p * p);
+  float th = aSeed.x + 7.5 * pow(p, 1.4);
   vec2 d = vec2(cos(th), sin(th)) * r;
   vec2 uv = uNucleus + vec2(d.x / uAspect, d.y);
 
@@ -147,14 +135,13 @@ export default function NebulaBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const gl = canvas.getContext('webgl', { alpha: false, antialias: false });
+    const gl = canvas.getContext('webgl', { alpha: false, antialias: true });
     if (!gl) return;
 
     const compile = (type: number, src: string) => {
       const sh = gl.createShader(type)!;
       gl.shaderSource(sh, src);
       gl.compileShader(sh);
-      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(sh));
       return sh;
     };
     const makeProgram = (vs: string, fs: string, attr: string) => {
@@ -169,7 +156,6 @@ export default function NebulaBackground() {
     const bgProg = makeProgram(BG_VERT, BG_FRAG, 'aPosition');
     const starProg = makeProgram(STAR_VERT, STAR_FRAG, 'aSeed');
 
-    // Full-screen quad
     const quadBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.bufferData(
@@ -178,7 +164,6 @@ export default function NebulaBackground() {
       gl.STATIC_DRAW
     );
 
-    // Star seeds: two spiral arms + some scattered field stars
     const seeds = new Float32Array(STAR_COUNT * 4);
     for (let i = 0; i < STAR_COUNT; i++) {
       const onArm = Math.random() < 0.8;
@@ -187,7 +172,7 @@ export default function NebulaBackground() {
         : Math.random() * Math.PI * 2;
       seeds[i * 4 + 0] = a0;
       seeds[i * 4 + 1] = Math.random();
-      seeds[i * 4 + 2] = 1 / (50 + Math.random() * 45); // one inward trip every ~50-95s
+      seeds[i * 4 + 2] = 1 / (50 + Math.random() * 45);
       seeds[i * 4 + 3] = 1 + Math.random() * Math.random() * 2.6;
     }
     const starBuffer = gl.createBuffer();
@@ -214,7 +199,6 @@ export default function NebulaBackground() {
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // ---- Sizing: render at the screen's real pixel density so it stays sharp ----
     let dpr = 1;
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -224,29 +208,18 @@ export default function NebulaBackground() {
       if (reduceMotion && ready) draw(performance.now());
     };
 
-    // ---- Texture (power-of-two copy + mipmaps for clean downscaling) ----
     const texture = gl.createTexture();
     let ready = false;
     let imgAspect = 16 / 9;
 
-    // ---- Pointer + tint state ----
     const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
     const onMove = (e: MouseEvent) => {
       mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.ty = -((e.clientY / window.innerHeight) * 2 - 1); // +1 at top
+      mouse.ty = -((e.clientY / window.innerHeight) * 2 - 1);
     };
 
     const tint: [number, number, number] = hexToVec3('#818cf8');
     const targetTint: [number, number, number] = [...tint];
-    const onAccent = (e: Event) => {
-      const detail = (e as CustomEvent<string>).detail;
-      if (typeof detail === 'string') {
-        const v = hexToVec3(detail);
-        targetTint[0] = v[0];
-        targetTint[1] = v[1];
-        targetTint[2] = v[2];
-      }
-    };
 
     let raf = 0;
     const start = performance.now();
@@ -262,7 +235,6 @@ export default function NebulaBackground() {
       const ny = NUCLEUS[1] + mouse.y * CURSOR_LEAN;
       const aspect = canvas!.width / canvas!.height;
 
-      // 1) Nebula
       gl!.disable(gl!.BLEND);
       gl!.useProgram(bgProg);
       gl!.bindBuffer(gl!.ARRAY_BUFFER, quadBuffer);
@@ -279,7 +251,6 @@ export default function NebulaBackground() {
       gl!.uniform3f(bgU.tint, tint[0], tint[1], tint[2]);
       gl!.drawArrays(gl!.TRIANGLES, 0, 6);
 
-      // 2) Stars (additive)
       gl!.enable(gl!.BLEND);
       gl!.blendFunc(gl!.SRC_ALPHA, gl!.ONE);
       gl!.useProgram(starProg);
@@ -299,23 +270,12 @@ export default function NebulaBackground() {
 
     const image = new Image();
     image.onload = () => {
-      const maxTex = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE) as number, 4096);
-      const pot = (n: number) => Math.min(maxTex, Math.pow(2, Math.round(Math.log2(n))));
-      const tc = document.createElement('canvas');
-      tc.width = pot(image.naturalWidth);
-      tc.height = pot(image.naturalHeight);
-      const ctx = tc.getContext('2d');
-      if (!ctx) return;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(image, 0, 0, tc.width, tc.height);
-
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tc);
-      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
       imgAspect = image.naturalWidth / image.naturalHeight;
@@ -327,21 +287,11 @@ export default function NebulaBackground() {
     resize();
     window.addEventListener('resize', resize);
     window.addEventListener('mousemove', onMove, { passive: true });
-    window.addEventListener('embrione:accent', onAccent);
-
-    // Pause when the tab is hidden
-    const onVisibility = () => {
-      if (document.hidden) cancelAnimationFrame(raf);
-      else if (ready && !reduceMotion) raf = requestAnimationFrame(draw);
-    };
-    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('embrione:accent', onAccent);
-      document.removeEventListener('visibilitychange', onVisibility);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, []);
