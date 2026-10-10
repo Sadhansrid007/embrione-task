@@ -36,7 +36,7 @@ export default function ChapterSection({
       {/* Scroll Runway Spacers (Creates Viewport Scroll Distance for Anime.js Scrubbing) */}
       <div className="relative z-0 pointer-events-none">
         {Array.from({ length: spacersCount }).map((_, i) => (
-          <div key={i} className="section-spacer h-[100vh] w-full" />
+          <div key={i} className="section-spacer h-[60vh] w-full" />
         ))}
       </div>
     </section>
