@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import ParticleBackground from '@/components/ParticleBackground';
+import { useEffect, useState } from 'react';
 import ParticleCube from '@/components/ParticleCube';
 import { supabase } from '@/lib/supabase';
 
@@ -23,6 +22,18 @@ export default function RegisterPage() {
   const [accentColor, setAccentColor] = useState('#818cf8');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Tint the global background (rendered in layout.tsx) to match the focused field
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('embrione:accent', { detail: accentColor }));
+  }, [accentColor]);
+
+  // Reset the background tint when leaving this page
+  useEffect(() => {
+    return () => {
+      window.dispatchEvent(new CustomEvent('embrione:accent', { detail: '#818cf8' }));
+    };
+  }, []);
 
   // Field calculation across ALL 10 text fields + photo option (11 total)
   const totalFields = 11;
@@ -97,8 +108,6 @@ export default function RegisterPage() {
 
   return (
     <div className="relative min-h-screen">
-      <ParticleBackground accentColor={accentColor} />
-
       <div className="w-full max-w-6xl mx-auto px-6 pt-12 pb-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-start relative z-10">
         {/* Left Column: Complete 10 Fields + Photo Upload */}
         <div className="space-y-6">
