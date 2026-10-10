@@ -9,7 +9,8 @@ export default function NebulaBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const gl = canvas.getContext('webgl');
+    // Request full high-DPI resolution
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
     if (!gl) return;
 
     const vsSource = `
@@ -23,27 +24,43 @@ export default function NebulaBackground() {
     `;
 
     const fsSource = `
-      precision mediump float;
+      precision highp float;
       uniform sampler2D uTexture;
       uniform vec2 uMouse;
       uniform float uTime;
+      uniform vec2 uRes;
       varying vec2 vUv;
 
       void main() {
-        // Dynamic parallax shift based on cursor
-        vec2 uv = vUv + uMouse * 0.035;
+        vec2 st = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
         
-        // Gentle breathing scale expansion
-        float scale = 1.0 + sin(uTime * 0.5) * 0.02;
-        uv = (uv - 0.5) * scale + 0.5;
+        // Logarithmic spiral pull towards center core
+        float dist = length(st);
+        float angle = atan(st.y, st.x);
+        
+        // Dynamic spiral rotation influence driven by cursor distance
+        float spiralStrength = uMouse.x * 0.15;
+        float pullStrength = uMouse.y * 0.08;
+        
+        float newAngle = angle + (1.0 / (dist + 0.15)) * spiralStrength + sin(uTime * 0.3) * 0.05;
+        float newDist = dist * (1.0 - pullStrength * smoothstep(0.8, 0.0, dist));
+
+        // Reconstruct warped coordinates
+        vec2 warpedSt = vec2(cos(newAngle), sin(newAngle)) * newDist;
+        vec2 uv = (warpedSt * uRes.y + 0.5 * uRes) / uRes;
 
         vec4 texColor = texture2D(uTexture, uv);
-        
-        // Enhance core bright center glow
-        float coreGlow = smoothstep(0.8, 0.0, length(vUv - 0.5 - uMouse * 0.02));
-        vec3 color = texColor.rgb + vec3(0.15, 0.05, 0.2) * coreGlow;
 
-        gl_FragColor = vec4(color, 1.0);
+        // Left-to-Right Gradual Brightness Ramp
+        // Darker on the left (0.40) to keep text readable -> Full brightness on the right (1.10)
+        float leftToRightGlow = mix(0.40, 1.10, smoothstep(0.0, 0.85, vUv.x));
+        vec3 finalColor = texColor.rgb * leftToRightGlow;
+
+        // Enhance core nucleus light pulse
+        float nucleus = smoothstep(0.45, 0.0, dist);
+        finalColor += vec3(0.2, 0.08, 0.25) * nucleus * (0.8 + 0.2 * sin(uTime * 1.5));
+
+        gl_FragColor = vec4(finalColor, 1.0);
       }
     `;
 
@@ -73,8 +90,8 @@ export default function NebulaBackground() {
 
     const uMouseLoc = gl.getUniformLocation(program, 'uMouse');
     const uTimeLoc = gl.getUniformLocation(program, 'uTime');
+    const uResLoc = gl.getUniformLocation(program, 'uRes');
 
-    // Load reference texture
     const texture = gl.createTexture();
     const image = new Image();
     image.src = '/nebula.jpg';
@@ -89,8 +106,9 @@ export default function NebulaBackground() {
     };
 
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
     resize();
@@ -108,9 +126,10 @@ export default function NebulaBackground() {
 
     const render = () => {
       const time = (performance.now() - startTime) * 0.001;
-      mouse.currentX += (mouse.targetX - mouse.currentX) * 0.05;
-      mouse.currentY += (mouse.targetY - mouse.currentY) * 0.05;
+      mouse.currentX += (mouse.targetX - mouse.currentX) * 0.04;
+      mouse.currentY += (mouse.targetY - mouse.currentY) * 0.04;
 
+      gl.uniform2f(uResLoc, canvas.width, canvas.height);
       gl.uniform2f(uMouseLoc, mouse.currentX, mouse.currentY);
       gl.uniform1f(uTimeLoc, time);
 
